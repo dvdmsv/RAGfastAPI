@@ -73,8 +73,13 @@ def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_defau
             
             nuevo_motor = index.as_chat_engine(
                 chat_mode="context",
-                system_prompt="Eres un asistente experto. Responde siempre en español basándote en los documentos proporcionados.",
-                similarity_top_k=4  # Traemos los 4 mejores resultados híbridos
+                system_prompt=(
+                    "Eres un asistente experto. Responde siempre en español basándote ÚNICAMENTE en los documentos proporcionados. "
+                    "REGLA DE ORO: Siempre que des un dato o información, DEBES citar explícitamente el nombre del archivo del cual proviene "
+                    "(por ejemplo: 'Según el documento reporte.pdf...' o 'Como se indica en el archivo resumen.txt'). "
+                    "Si la respuesta no está en los documentos, di simplemente que no tienes esa información."
+                ),
+                similarity_top_k=4
             )
             
             motores_de_chat[session_id] = nuevo_motor

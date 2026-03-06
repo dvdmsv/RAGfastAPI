@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # SERVICIO 1: EL CEREBRO (FastAPI + RAG)
+  # ==========================================
+  backend:
+    build: .
+    container_name: rag_backend
+    # Levantamos FastAPI
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mapeamos tu carpeta local ./data al contenedor para que los PDFs persistan
+      - ./data:/app/data
+    environment:
+      # TRUCO VITAL: host.docker.internal permite al contenedor hablar con tu LM Studio local
+      - OPENAI_API_BASE=http://host.docker.internal:1234/v1
+      - OPENAI_API_KEY=lm-studio
+      - LLM_MODEL=gpt-3.5-turbo
+
+  # ==========================================
+  # SERVICIO 2: EL ROSTRO (Streamlit)
+  # ==========================================
+  frontend:
+    build: .
+    container_name: rag_frontend
+    # Levantamos Streamlit
+    command: streamlit run frontend.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    environment:
+      # Le decimos al Frontend que el Backend está en la red interna de Docker
+      - API_URL=http://backend:8000

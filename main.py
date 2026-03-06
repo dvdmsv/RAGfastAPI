@@ -50,6 +50,47 @@ def subir_documento(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al guardar el archivo: {str(e)}")
 
+@app.get("/api/documents")
+async def listar_documentos():
+    """Devuelve la lista de archivos actualmente en la base de conocimiento."""
+    directorio_docs = "./data/docs"
+    
+    # Si la carpeta no existe, devolvemos una lista vacía
+    if not os.path.exists(directorio_docs):
+        return {"documentos": []}
+        
+    try:
+        # Leemos los nombres de los archivos que están en la carpeta
+        archivos = [f for f in os.listdir(directorio_docs) if os.path.isfile(os.path.join(directorio_docs, f))]
+        return {"documentos": archivos}
+    except Exception as e:
+        return {"error": str(e)}
+    
+@app.delete("/api/documents/{nombre_archivo}")
+async def borrar_documento(nombre_archivo: str):
+    """Borra un archivo físico y actualiza el índice RAG."""
+    directorio_docs = "./data/docs"
+    ruta_archivo = os.path.join(directorio_docs, nombre_archivo)
+    
+    # 1. Verificamos que el archivo exista por seguridad
+    if not os.path.exists(ruta_archivo):
+        return {"error": "El archivo no existe."}
+        
+    try:
+        # 2. Borramos el archivo físico de la carpeta
+        os.remove(ruta_archivo)
+        
+        # 3. Volvemos a indexar la carpeta para que Qdrant olvide el archivo borrado
+        # Si la carpeta se queda vacía, la función lo manejará adecuadamente
+        resultado_rag = inicializar_y_cargar_datos(directorio_docs)
+        
+        return {
+            "mensaje": f"Archivo '{nombre_archivo}' eliminado con éxito.",
+            "estado_bd": resultado_rag
+        }
+    except Exception as e:
+        return {"error": f"Error al procesar el borrado: {str(e)}"}
+
 # Eliminamos 'async' por la misma razón (evitar bloqueos al procesar vectores)
 @app.post("/api/indexar")
 def indexar_documentos():

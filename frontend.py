@@ -93,6 +93,44 @@ with st.sidebar:
         else:
             st.warning("Por favor, selecciona un archivo primero.")
 
+    st.write("---")
+    
+    st.header("📚 Archivos en Memoria")
+    
+    try:
+        respuesta_docs = requests.get(f"{API_URL}/api/documents")
+        
+        if respuesta_docs.status_code == 200:
+            documentos = respuesta_docs.json().get("documentos", [])
+            
+            if documentos:
+                with st.expander(f"Ver documentos indexados ({len(documentos)})", expanded=True):
+                    # Iteramos sobre cada archivo
+                    for doc in documentos:
+                        # Dividimos el espacio: 85% texto, 15% botón
+                        col_doc, col_del = st.columns([8.5, 1.5])
+                        
+                        with col_doc:
+                            st.text(f"📄 {doc}")
+                            
+                        with col_del:
+                            # Creamos un botón de borrado único para cada archivo
+                            if st.button("🗑️", key=f"del_file_{doc}", help="Eliminar documento"):
+                                # Llamamos a nuestro nuevo endpoint DELETE
+                                resp_borrar = requests.delete(f"{API_URL}/api/documents/{doc}")
+                                
+                                if resp_borrar.status_code == 200:
+                                    st.toast(f"Archivo {doc} eliminado.")
+                                    st.rerun() # Recargamos la interfaz al instante
+                                else:
+                                    st.error("Error al borrar.")
+            else:
+                st.info("La base de conocimiento está vacía. ¡Sube tu primer archivo!")
+        else:
+            st.error("No se pudo cargar la lista.")
+    except Exception:
+        st.warning("FastAPI no está respondiendo. ¿Está encendido el servidor?")
+
 # ---------------------------------------------------------
 # 3. INTERFAZ DE CHAT PRINCIPAL
 # ---------------------------------------------------------

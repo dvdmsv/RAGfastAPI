@@ -1,0 +1,13 @@
+# Framework Web
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-dotenv==1.0.1
+
+# LlamaIndex Core y extensiones
+llama-index==0.10.43
+llama-index-llms-openai==0.1.22
+llama-index-embeddings-huggingface==0.2.1
+llama-index-vector-stores-qdrant==0.2.8
+
+# Base de datos vectorial (Modo local)
+qdrant-client==1.9.1

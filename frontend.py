@@ -1,9 +1,10 @@
+import os
 import streamlit as st
 import requests
 import uuid
 
 # URL de nuestro backend FastAPI
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="RAG IA Local", page_icon="🤖", layout="centered")
 st.title("🤖 Chatbot RAG Multi-Hilo")

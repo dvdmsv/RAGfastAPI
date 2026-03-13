@@ -29,6 +29,15 @@ El sistema RAG es agnóstico al modelo gracias a la API compatible con OpenAI de
 Según la rúbrica, las dependencias están congeladas en el archivo `requirements.txt`. Sin embargo, gracias a la arquitectura basada en Docker, **no es necesario instalar dependencias en tu entorno local ni ejecutar scripts por separado**. El orquestador se encarga de todo.
 
 1. Abre una terminal en la raíz del proyecto.
-2. Construye y levanta el entorno ejecutando:
+2. Define la URL de LM Studio en el archivo `.venv`. Si tu servidor corre en Windows en `http://192.168.1.100:1234`, déjalo así:
+   ```dotenv
+   OPENAI_API_BASE=http://192.168.1.100:1234
+   ```
+3. Si estás usando Docker dentro de WSL y LM Studio se ejecuta en Windows, usa el script que detecta automáticamente la IP de Windows y además exporta la configuración de `.venv` antes de arrancar Compose:
+   ```bash
+   ./scripts/docker-compose-wsl.sh up --build
+   ```
+4. En Docker Desktop o en entornos donde `host.docker.internal` ya funcione, también puedes seguir usando Compose directamente:
    ```bash
    docker compose up --build
+   ```

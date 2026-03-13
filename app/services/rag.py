@@ -9,13 +9,26 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 
+load_dotenv(".venv")
 load_dotenv()
+
+
+def normalizar_openai_api_base(raw_url: str) -> str:
+    url = raw_url.rstrip("/")
+    if not re.search(r"/v\d+$", url):
+        url = f"{url}/v1"
+    return url
+
+
+openai_api_base = normalizar_openai_api_base(
+    os.getenv("OPENAI_API_BASE", "http://host.docker.internal:1234/v1")
+)
 
 # ==========================================
 # 1. CONFIGURACIÓN DEL MODELO DE LENGUAJE
 # ==========================================
 llm = OpenAI(
-    api_base=os.getenv("OPENAI_API_BASE", "http://localhost:1234/v1"),
+    api_base=openai_api_base,
     api_key=os.getenv("OPENAI_API_KEY", "lm-studio"),
     model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
     temperature=0.1

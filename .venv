@@ -4,7 +4,7 @@ API_PORT=8000
 
 # Configuración del LLM (LM Studio)
 # LM Studio por defecto usa el puerto 1234
-OPENAI_API_BASE=http://localhost:1234/v1
+OPENAI_API_BASE=http://192.168.1.100:1234
 OPENAI_API_KEY=lm-studio  # No importa el valor, pero la librería exige que no esté vacía
 LLM_MODEL=gpt-3.5-turbo     # LM Studio usa el modelo que tengas cargado en su interfaz
 

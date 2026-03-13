@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ==========================================
   # SERVICIO 1: EL CEREBRO (FastAPI + RAG)
@@ -7,12 +5,12 @@ services:
   backend:
     build: .
     container_name: rag_backend
-    
-    # --- ESTAS SON LAS LÍNEAS QUE FALTAN ---
+
+    # En Docker Desktop `host-gateway` suele bastar. En WSL nativo podemos
+    # sobreescribirlo con la IP de Windows mediante HOST_DOCKER_INTERNAL_TARGET.
     extra_hosts:
-      - "host.docker.internal:host-gateway"
-    # ---------------------------------------
-    
+      - "host.docker.internal:${HOST_DOCKER_INTERNAL_TARGET:-host-gateway}"
+
     # Levantamos FastAPI
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
@@ -21,8 +19,8 @@ services:
       # Mapeamos tu carpeta local ./data al contenedor para que los PDFs persistan
       - ./data:/app/data
     environment:
-      # TRUCO VITAL: host.docker.internal permite al contenedor hablar con tu LM Studio local
-      - OPENAI_API_BASE=http://host.docker.internal:1234/v1
+      # host.docker.internal apunta al host Docker o a la IP de Windows detectada en WSL.
+      - OPENAI_API_BASE=${OPENAI_API_BASE:-http://host.docker.internal:1234/v1}
       - OPENAI_API_KEY=lm-studio
       - LLM_MODEL=gpt-3.5-turbo
 

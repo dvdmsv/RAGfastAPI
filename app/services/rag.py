@@ -10,7 +10,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 
-load_dotenv(".venv")
 load_dotenv()
 
 
@@ -116,7 +115,7 @@ def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_defau
             index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
             
             nuevo_motor = index.as_chat_engine(
-                chat_mode="sticky",
+                chat_mode="context",
                 system_prompt=(
                     "Eres un asistente experto. Responde siempre en español basándote ÚNICAMENTE en los documentos proporcionados. "
                     "REGLA DE ORO: Siempre que des un dato o información, DEBES citar explícitamente el nombre del archivo del cual proviene "

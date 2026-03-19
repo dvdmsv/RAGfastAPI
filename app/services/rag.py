@@ -130,8 +130,49 @@ def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_defau
         motor_usuario = motores_de_chat[session_id]
         respuesta_streaming = motor_usuario.stream_chat(pregunta)
         
+        buffer = ""
+        in_think = False
+        
         for texto_parcial in respuesta_streaming.response_gen:
-            yield texto_parcial
+            buffer += texto_parcial
+            
+            if not in_think:
+                if "<think>" in buffer:
+                    partes = buffer.split("<think>", 1)
+                    yield partes[0]
+                    yield "\n\n> 💭 **Razonamiento de la IA:**\n> "
+                    buffer = partes[1]
+                    in_think = True
+                else:
+                    idx = buffer.rfind("<")
+                    if idx != -1 and len(buffer) - idx < 7:
+                        yield buffer[:idx]
+                        buffer = buffer[idx:]
+                    else:
+                        yield buffer
+                        buffer = ""
+            
+            if in_think:
+                if "</think>" in buffer:
+                    partes = buffer.split("</think>", 1)
+                    yield partes[0].replace("\n", "\n> ")
+                    yield "\n\n---\n\n"
+                    buffer = partes[1]
+                    in_think = False
+                else:
+                    idx = buffer.rfind("</")
+                    if idx != -1 and len(buffer) - idx < 8:
+                        yield buffer[:idx].replace("\n", "\n> ")
+                        buffer = buffer[idx:]
+                    else:
+                        yield buffer.replace("\n", "\n> ")
+                        buffer = ""
+
+        if buffer:
+            if in_think:
+                yield buffer.replace("\n", "\n> ")
+            else:
+                yield buffer
             
     except Exception as e:
         yield f"Error al consultar el modelo: {str(e)}"

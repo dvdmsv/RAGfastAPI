@@ -92,7 +92,12 @@ def inicializar_y_cargar_datos(directorio_docs: str = "./data/docs"):
     
     return f"Se han indexado {len(documentos)} fragmentos exitosamente."
 
-def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_default") -> Generator[str, None, None]:
+def obtener_respuesta_rag_stream(
+    pregunta: str, 
+    session_id: str = "usuario_default",
+    system_prompt: str = None,
+    temperature: float = 0.1
+) -> Generator[str, None, None]:
     global motores_de_chat
     
     try:
@@ -111,23 +116,46 @@ def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_defau
             
             return
         
-        if session_id not in motores_de_chat:
+        if not system_prompt:
+            system_prompt = (
+                "Eres un asistente experto. Responde siempre en español basándote ÚNICAMENTE en los documentos proporcionados. "
+                "REGLA DE ORO: Siempre que des un dato o información, DEBES citar explícitamente el nombre del archivo del cual proviene "
+                "(por ejemplo: 'Según el documento reporte.pdf...' o 'Como se indica en el archivo resumen.txt'). "
+                "Si la respuesta no está en los documentos, di simplemente que no tienes esa información."
+            )
+
+        recreate = False
+        motor_data = motores_de_chat.get(session_id)
+        if not motor_data:
+            recreate = True
+        else:
+            if motor_data.get("system_prompt") != system_prompt or motor_data.get("temperature") != temperature:
+                recreate = True
+        
+        if recreate:
+            custom_llm = OpenAI(
+                api_base=openai_api_base,
+                api_key=os.getenv("OPENAI_API_KEY", "lm-studio"),
+                model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
+                temperature=temperature
+            )
+            
             index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
             
             nuevo_motor = index.as_chat_engine(
                 chat_mode="context",
-                system_prompt=(
-                    "Eres un asistente experto. Responde siempre en español basándote ÚNICAMENTE en los documentos proporcionados. "
-                    "REGLA DE ORO: Siempre que des un dato o información, DEBES citar explícitamente el nombre del archivo del cual proviene "
-                    "(por ejemplo: 'Según el documento reporte.pdf...' o 'Como se indica en el archivo resumen.txt'). "
-                    "Si la respuesta no está en los documentos, di simplemente que no tienes esa información."
-                ),
+                llm=custom_llm,
+                system_prompt=system_prompt,
                 similarity_top_k=4
             )
             
-            motores_de_chat[session_id] = nuevo_motor
+            motores_de_chat[session_id] = {
+                "engine": nuevo_motor,
+                "system_prompt": system_prompt,
+                "temperature": temperature
+            }
         
-        motor_usuario = motores_de_chat[session_id]
+        motor_usuario = motores_de_chat[session_id]["engine"]
         respuesta_streaming = motor_usuario.stream_chat(pregunta)
         
         buffer = ""
@@ -173,6 +201,23 @@ def obtener_respuesta_rag_stream(pregunta: str, session_id: str = "usuario_defau
                 yield buffer.replace("\n", "\n> ")
             else:
                 yield buffer
+
+        # Añadido de citas de fuentes
+        if hasattr(respuesta_streaming, "source_nodes") and respuesta_streaming.source_nodes:
+            fuentes_str = "\n\n---\n\n**📚 Fuentes consultadas:**\n"
+            docs_citados = set()
+            for nodo in respuesta_streaming.source_nodes:
+                archivo = nodo.node.metadata.get("file_name", "Desconocido")
+                pagina = nodo.node.metadata.get("page_label", "N/A")
+                score = getattr(nodo, "score", 0.0)
+                
+                doc_id = f"- 📄 `{archivo}` (Pág: {pagina}) - Relevancia: {score:.2f}"
+                if doc_id not in docs_citados:
+                    docs_citados.add(doc_id)
+                    fuentes_str += doc_id + "\n"
+                    
+            if docs_citados:
+                yield fuentes_str
             
     except Exception as e:
         yield f"Error al consultar el modelo: {str(e)}"

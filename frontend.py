@@ -132,6 +132,20 @@ with st.sidebar:
     except Exception:
         st.warning("FastAPI no está respondiendo. ¿Está encendido el servidor?")
 
+    st.write("---")
+    
+    with st.expander("⚙️ Ajustes Avanzados"):
+        st.caption("Ajustar parámetros reiniciará la memoria del chat actual.")
+        prompt_defecto = (
+            "Eres un asistente experto. Responde siempre en español basándote ÚNICAMENTE en los documentos proporcionados. "
+            "REGLA DE ORO: Siempre que des un dato o información, DEBES citar explícitamente el nombre del archivo del cual proviene "
+            "(por ejemplo: 'Según el documento reporte.pdf...' o 'Como se indica en el archivo resumen.txt'). "
+            "Si la respuesta no está en los documentos, di simplemente que no tienes esa información."
+        )
+        
+        system_prompt = st.text_area("System Prompt", value=prompt_defecto, height=150)
+        temperature = st.slider("Temperatura (creatividad)", min_value=0.0, max_value=1.0, value=0.1, step=0.1)
+
 # ---------------------------------------------------------
 # 3. INTERFAZ DE CHAT PRINCIPAL
 # ---------------------------------------------------------
@@ -149,7 +163,9 @@ if prompt := st.chat_input("Escribe tu pregunta aquí..."):
         try:
             payload = {
                 "pregunta": prompt,
-                "session_id": chat_actual_id
+                "session_id": chat_actual_id,
+                "system_prompt": system_prompt,
+                "temperature": float(temperature)
             }
             
             respuesta_api = requests.post(f"{API_URL}/api/chat", json=payload, stream=True)

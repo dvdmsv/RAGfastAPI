@@ -21,6 +21,8 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     pregunta: str
     session_id: Optional[str] = "usuario_default"
+    system_prompt: Optional[str] = None
+    temperature: Optional[float] = 0.1
 
 @app.get("/health")
 async def health_check():
@@ -102,5 +104,10 @@ async def chat_endpoint(request: QueryRequest):
     """
     Devuelve la respuesta generada por la IA como un flujo continuo de texto (Streaming).
     """
-    generador = obtener_respuesta_rag_stream(request.pregunta, request.session_id)
+    generador = obtener_respuesta_rag_stream(
+        request.pregunta, 
+        request.session_id,
+        system_prompt=request.system_prompt,
+        temperature=request.temperature
+    )
     return StreamingResponse(generador, media_type="text/event-stream")

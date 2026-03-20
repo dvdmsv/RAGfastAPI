@@ -11,9 +11,8 @@ A diferencia de un enfoque basado puramente en scripts de terminal, este sistema
 * **Vectorstore:** Qdrant (persistido localmente, con capacidades de búsqueda avanzada).
 * **Frontend (Interfaz):** Streamlit, que unifica la ingesta de documentos y el agente de chat en una sola aplicación web.
 * **Embeddings:** HuggingFace (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
-* **Inferencia LLM:** LM Studio (ejecución 100% local, sin APIs de terceros ni fuga de datos).
-* **Despliegue:** Docker y Docker Compose para garantizar reproducibilidad total.
-
+* **Inferencia LLM:** LM Studio (ejecución 100% local, sin APIs de terceros ni fuga de datos). Soporta **Modelos de Razonamiento**, ya que el backend intercepta y formatea correctamente las etiquetas `<think>` emitidas por modelos como DeepSeek R1 en el UI.
+* **Despliegue:** Docker y Docker Compose para garantizar reproducibilidad total, o despliegue local nativo.
 ## 🚀 1. Configuración de LM Studio (Requisito Previo)
 
 El sistema RAG es agnóstico al modelo gracias a la API compatible con OpenAI de LM Studio. 
@@ -35,13 +34,15 @@ Según la rúbrica, las dependencias están congeladas en el archivo `requiremen
 
 | Caso | Compose a usar | Cómo arrancar |
 |---|---|---|
-| Docker corre normalmente en tu equipo y LM Studio también | `docker-compose.yml` | `docker compose up --build` |
-| Docker corre dentro de WSL y LM Studio corre en Windows | `docker-compose.wsl.yml` | `./scripts/docker-compose-wsl.sh up --build` |
+| Docker corre normalmente en tu equipo y LM Studio también (Variante A) | `docker-compose.yml` | `docker compose up --build` |
+| Docker corre dentro de WSL y LM Studio corre en Windows (Variante B) | `docker-compose.wsl.yml` | `./scripts/docker-compose-wsl.sh up --build` |
+| No quieres usar Docker; ejecución directa de Python (Variante C) | *No aplica* | `bash start_local.sh` |
 
 Regla práctica:
 
-- si LM Studio debe alcanzarse como `http://host.docker.internal:1234/v1`, usa `docker-compose.yml`
-- si LM Studio debe alcanzarse como `http://localhost:1234/v1` desde WSL, usa `docker-compose.wsl.yml`
+- si LM Studio debe alcanzarse como `http://host.docker.internal:1234/v1`, usa Variante A.
+- si LM Studio debe alcanzarse como `http://localhost:1234/v1` desde WSL, usa Variante B.
+- si prefieres ejecutar el código de Python directamente de fondo en tu máquina, usa Variante C.
 
 ### Variante A: Docker "normal" en el mismo equipo (recomendada por defecto)
 
@@ -94,6 +95,20 @@ Esta variante usa el archivo `docker-compose.wsl.yml` y cambia la red a `host` p
 - backend en `http://localhost:8000`
 - frontend en `http://localhost:8501`
 - LM Studio accesible desde el contenedor como `http://localhost:1234/v1`
+
+### Variante C: Ejecución Local Nativa (Sin Docker)
+
+Usa esta variante si:
+
+- Tienes problemas de red con Docker o Windows Subsystem for Linux.
+- Prefieres no usar contenedores y apoyarte directamente en el entorno virtual de tu SO.
+
+Arranque automático:
+   ```bash
+   bash start_local.sh
+   ```
+
+Este script automatizado buscará y creará automáticamente el entorno virtual, instalará las dependencias de `requirements.txt` y lanzará los servicios de FastAPI y Streamlit sin bloquear el terminal.
 
 ## 📚 3. Diferencia entre `host.docker.internal` y `network_mode: host`
 
@@ -191,4 +206,22 @@ docker compose -f docker-compose.wsl.yml build --no-cache
 Ver logs:
 ```bash
 ./scripts/docker-compose-wsl.sh logs -f
+```
+
+### Variante C: Ejecución Local Nativa (Sin Docker)
+
+Levantar todo en segundo plano:
+```bash
+bash start_local.sh
+```
+
+Detener los servicios locales:
+```bash
+pkill -f uvicorn && pkill -f streamlit
+```
+
+Ver logs:
+```bash
+tail -f backend_local.log
+tail -f frontend_local.log
 ```

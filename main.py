@@ -1,11 +1,13 @@
 import os
 import shutil
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from typing import Optional
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional 
 from fastapi.responses import StreamingResponse
-from app.services.rag import inicializar_y_cargar_datos, obtener_respuesta_rag_stream
+from pydantic import BaseModel
+
+from app.services.rag import inicializar_y_cargar_datos, listar_modelos_lm_studio, obtener_respuesta_rag_stream
 
 app = FastAPI(title="RAG API Local - IA & Big Data", version="1.0.0")
 
@@ -23,14 +25,33 @@ class QueryRequest(BaseModel):
     session_id: Optional[str] = "usuario_default"
     system_prompt: Optional[str] = None
     temperature: Optional[float] = 0.1
+    similarity_top_k: Optional[int] = None
+    similarity_cutoff: Optional[float] = None
+    source_top_k: Optional[int] = None
+    usar_reranker: Optional[bool] = None
+    rerank_top_n: Optional[int] = None
+
+
+class IndexRequest(BaseModel):
+    chunk_size: Optional[int] = None
+    chunk_overlap: Optional[int] = None
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "mensaje": "Servidor operativo."}
 
+
+@app.get("/api/models")
+async def listar_modelos():
+    return listar_modelos_lm_studio()
+
 # Eliminamos 'async' para que FastAPI use un hilo secundario y no bloquee el chat
 @app.post("/api/upload")
-def subir_documento(file: UploadFile = File(...)):
+def subir_documento(
+    file: UploadFile = File(...),
+    chunk_size: Optional[int] = Form(None),
+    chunk_overlap: Optional[int] = Form(None),
+):
     """
     Recibe un documento (PDF, TXT), lo guarda en disco y avisa al sistema RAG.
     """
@@ -43,7 +64,11 @@ def subir_documento(file: UploadFile = File(...)):
         with open(ruta_archivo, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        resultado_indexacion = inicializar_y_cargar_datos(directorio_destino)
+        resultado_indexacion = inicializar_y_cargar_datos(
+            directorio_destino,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
         
         return {
             "mensaje": f"Archivo '{file.filename}' subido con éxito.",
@@ -95,8 +120,12 @@ async def borrar_documento(nombre_archivo: str):
 
 # Eliminamos 'async' por la misma razón (evitar bloqueos al procesar vectores)
 @app.post("/api/indexar")
-def indexar_documentos():
-    resultado = inicializar_y_cargar_datos()
+def indexar_documentos(request: Optional[IndexRequest] = None):
+    request = request or IndexRequest()
+    resultado = inicializar_y_cargar_datos(
+        chunk_size=request.chunk_size,
+        chunk_overlap=request.chunk_overlap,
+    )
     return {"mensaje": resultado}
 
 @app.post("/api/chat")
@@ -105,9 +134,14 @@ async def chat_endpoint(request: QueryRequest):
     Devuelve la respuesta generada por la IA como un flujo continuo de texto (Streaming).
     """
     generador = obtener_respuesta_rag_stream(
-        request.pregunta, 
+        request.pregunta,
         request.session_id,
         system_prompt=request.system_prompt,
-        temperature=request.temperature
+        temperature=request.temperature,
+        similarity_top_k=request.similarity_top_k,
+        similarity_cutoff=request.similarity_cutoff,
+        source_top_k=request.source_top_k,
+        usar_reranker=request.usar_reranker,
+        rerank_top_n=request.rerank_top_n,
     )
     return StreamingResponse(generador, media_type="text/event-stream")

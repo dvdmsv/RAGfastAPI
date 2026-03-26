@@ -245,6 +245,7 @@ if "rag_settings" not in st.session_state:
         "source_top_k": 5,
         "usar_reranker": False,
         "rerank_top_n": 3,
+        "llm_model": None,
     }
     st.session_state.rag_settings.update(rag_settings_guardados)
 
@@ -362,22 +363,22 @@ with st.sidebar:
 
         with col_modelo:
             if st.session_state.modelos_lm:
-                modelo_mostrado = st.session_state.modelo_actual_lm or st.session_state.modelos_lm[0]
-                st.selectbox(
-                    "Modelo activo en LM Studio",
+                modelo_guardado = rag_settings.get("llm_model") or st.session_state.modelo_actual_lm or st.session_state.modelos_lm[0]
+                indice_actual = st.session_state.modelos_lm.index(modelo_guardado) if modelo_guardado in st.session_state.modelos_lm else 0
+                rag_settings["llm_model"] = st.selectbox(
+                    "Modelo LLM",
                     options=st.session_state.modelos_lm,
-                    index=st.session_state.modelos_lm.index(modelo_mostrado) if modelo_mostrado in st.session_state.modelos_lm else 0,
-                    disabled=True,
-                    help="Modelo de chat detectado en LM Studio. Cambialo desde LM Studio y pulsa ↻ para refrescar esta vista.",
+                    index=indice_actual,
+                    help="Selecciona el modelo a usar. LM Studio lo cargará automáticamente al enviar el siguiente mensaje.",
                 )
             else:
                 st.text_input(
-                    "Modelo activo en LM Studio",
+                    "Modelo LLM",
                     value=st.session_state.modelo_actual_lm or "",
                     disabled=True,
                     help="No se han podido cargar los modelos disponibles desde LM Studio.",
                 )
-        st.caption("Esta vista muestra los modelos de chat detectados. Para cambiar el modelo real debes hacerlo en LM Studio y luego pulsar ↻.")
+        st.caption("Pulsa ↻ para detectar los modelos disponibles en LM Studio y selecciona el que quieras usar.")
         if st.session_state.error_modelos_lm:
             st.warning(st.session_state.error_modelos_lm)
         st.session_state.mostrar_thinking = st.checkbox(
@@ -576,6 +577,7 @@ if prompt := st.chat_input("Escribe tu pregunta aquí..."):
                 "source_top_k": int(rag_settings["source_top_k"]),
                 "usar_reranker": bool(rag_settings["usar_reranker"]),
                 "rerank_top_n": int(rag_settings["rerank_top_n"]),
+                "llm_model": rag_settings.get("llm_model") or None,
             }
             
             respuesta_api = requests.post(f"{API_URL}/api/chat", json=payload, stream=True)

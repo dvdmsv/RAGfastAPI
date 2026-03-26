@@ -30,6 +30,7 @@ class QueryRequest(BaseModel):
     source_top_k: Optional[int] = None
     usar_reranker: Optional[bool] = None
     rerank_top_n: Optional[int] = None
+    llm_model: Optional[str] = None
 
 
 class IndexRequest(BaseModel):
@@ -143,5 +144,6 @@ async def chat_endpoint(request: QueryRequest):
         source_top_k=request.source_top_k,
         usar_reranker=request.usar_reranker,
         rerank_top_n=request.rerank_top_n,
+        llm_model=request.llm_model,
     )
     return StreamingResponse(generador, media_type="text/event-stream")

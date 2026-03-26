@@ -249,6 +249,7 @@ def obtener_respuesta_rag_stream(
     source_top_k: int | None = None,
     usar_reranker: bool | None = None,
     rerank_top_n: int | None = None,
+    llm_model: str | None = None,
 ) -> Generator[str, None, None]:
     global motores_de_chat
     contenido_generado = []
@@ -270,6 +271,7 @@ def obtener_respuesta_rag_stream(
             return
         
         system_prompt = construir_system_prompt(system_prompt)
+        modelo_a_usar = llm_model or DEFAULT_LLM_MODEL
         configuracion_rag = construir_configuracion_rag(
             similarity_top_k=similarity_top_k,
             similarity_cutoff=similarity_cutoff,
@@ -288,14 +290,15 @@ def obtener_respuesta_rag_stream(
                 motor_data.get("system_prompt") != system_prompt
                 or motor_data.get("temperature") != temperature
                 or motor_data.get("rag_config") != clave_configuracion
+                or motor_data.get("llm_model") != modelo_a_usar
             ):
                 recreate = True
-        
+
         if recreate:
             custom_llm = OpenAI(
                 api_base=openai_api_base,
                 api_key=os.getenv("OPENAI_API_KEY", "lm-studio"),
-                model=DEFAULT_LLM_MODEL,
+                model=modelo_a_usar,
                 temperature=temperature
             )
             
@@ -315,6 +318,7 @@ def obtener_respuesta_rag_stream(
                 "system_prompt": system_prompt,
                 "temperature": temperature,
                 "rag_config": clave_configuracion,
+                "llm_model": modelo_a_usar,
             }
         
         motor_usuario = motores_de_chat[session_id]["engine"]

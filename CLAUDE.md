@@ -65,11 +65,12 @@ Streamlit app. Chat sessions are UUID-keyed and stored in Streamlit session stat
 
 ### RAG Service (`app/services/rag.py`)
 Core logic:
-- **Per-session chat engines**: Each UUID session gets its own LlamaIndex `CondensePlusContextChatEngine` instance, recreated if system prompt or temperature changes.
+- **ReAct Agent**: Each UUID session gets its own `ReActAgent` (from `llama_index.core.agent`) that autonomously decides which tool to use. Recreated if system prompt, temperature, or model changes.
+- **Agent Tools**: `consultar_documentos` (RAG vector query with citations), `obtener_fecha_hora` (system date/time), `buscar_palabra_clave` (exact keyword search in documents).
+- **General conversation**: The agent handles greetings and general chat without requiring indexed documents.
 - **Hybrid search**: Dense (embedding) + sparse (BM25) vectors via Qdrant.
-- **Time detection**: Queries about current time/date are answered directly, bypassing RAG.
 - **Reasoning model support**: `<think>...</think>` tags from models like DeepSeek R1 are intercepted and formatted before streaming to the frontend.
-- **Citations**: Source filenames, page numbers, and relevance scores are appended to streamed responses.
+- **Citations**: Source filenames, page numbers, and relevance scores are appended to tool responses.
 
 ## Key Implementation Notes
 

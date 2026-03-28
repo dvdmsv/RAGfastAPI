@@ -26,8 +26,6 @@ STATE_FILE = Path("data/frontend_state.json")
 PRESETS_RAG = {
     "Chat": {
         "temperature": 0.2,
-        "chunk_size": 700,
-        "chunk_overlap": 120,
         "similarity_top_k": 6,
         "similarity_cutoff": 0.30,
         "source_top_k": 4,
@@ -36,8 +34,6 @@ PRESETS_RAG = {
     },
     "Precision": {
         "temperature": 0.1,
-        "chunk_size": 550,
-        "chunk_overlap": 120,
         "similarity_top_k": 5,
         "similarity_cutoff": 0.40,
         "source_top_k": 3,
@@ -46,8 +42,6 @@ PRESETS_RAG = {
     },
     "Rapido": {
         "temperature": 0.1,
-        "chunk_size": 900,
-        "chunk_overlap": 100,
         "similarity_top_k": 4,
         "similarity_cutoff": 0.25,
         "source_top_k": 3,
@@ -56,8 +50,6 @@ PRESETS_RAG = {
     },
     "Exploracion": {
         "temperature": 0.2,
-        "chunk_size": 800,
-        "chunk_overlap": 150,
         "similarity_top_k": 8,
         "similarity_cutoff": 0.20,
         "source_top_k": 5,
@@ -327,9 +319,8 @@ with st.sidebar:
     st.write("---")
 
     with st.expander("⚙️ Ajustes Avanzados", expanded=False):
-        st.caption("Los ajustes de indexacion se aplican al subir o reindexar documentos.")
-        st.markdown("**Conversacion**")
-        st.caption("Presets rapidos")
+        st.markdown("**Presets de consulta**")
+        st.caption("Cambian temperatura, recuperacion y reranking. Se aplican al instante en la siguiente pregunta.")
         col_preset_1, col_preset_2 = st.columns(2)
         with col_preset_1:
             if st.button("Chat", use_container_width=True, key="preset_chat"):
@@ -345,7 +336,7 @@ with st.sidebar:
             if st.button("Exploracion", use_container_width=True, key="preset_exploracion"):
                 aplicar_preset_rag("Exploracion")
                 st.rerun()
-        st.caption("Chat: equilibrado. Precision: mas estricto. Rapido: menos latencia. Exploracion: mas contexto.")
+        st.caption("Chat: equilibrado. Precision: mas estricto y con reranker. Rapido: menos fragmentos, sin reranker. Exploracion: mas contexto y fuentes.")
         col_modelo, col_refrescar = st.columns([4, 1])
         with col_refrescar:
             if st.button("↻", key="refrescar_modelos", help="Recargar modelos disponibles", use_container_width=True):
@@ -412,24 +403,7 @@ with st.sidebar:
         st.info("Estos parametros afectan al estilo y estabilidad de la respuesta.")
 
         st.markdown("**Recuperacion y Precision**")
-        rag_settings["chunk_size"] = st.slider(
-            "Tamano de fragmento",
-            min_value=300,
-            max_value=1500,
-            value=int(rag_settings["chunk_size"]),
-            step=50,
-            help="Tamano de cada trozo en el que se divide un documento al indexarlo. Fragmentos pequenos mejoran precision; fragmentos grandes conservan mas contexto.",
-        )
-        st.caption("Recomendado: 500-900. Si las respuestas mezclan temas, baja este valor; si falta contexto, subelo.")
-        rag_settings["chunk_overlap"] = st.slider(
-            "Solape entre fragmentos",
-            min_value=0,
-            max_value=min(400, rag_settings["chunk_size"] // 2),
-            value=min(int(rag_settings["chunk_overlap"]), max(0, rag_settings["chunk_size"] // 2)),
-            step=10,
-            help="Cantidad de texto compartido entre fragmentos consecutivos. Ayuda a no perder contexto cuando una idea cae entre dos trozos.",
-        )
-        st.caption("Recomendado: 80-150. Un solape bajo puede cortar ideas; uno muy alto añade redundancia.")
+        st.caption("Se aplican al instante en cada consulta.")
         rag_settings["similarity_top_k"] = st.slider(
             "Fragmentos recuperados",
             min_value=1,
@@ -477,6 +451,28 @@ with st.sidebar:
         )
         st.caption("Recomendado: 2-4. Valores bajos enfocan la respuesta; valores altos conservan mas contexto.")
         st.warning("El reranking puede mejorar la calidad final, pero normalmente aumenta un poco la latencia.")
+
+        st.markdown("**Indexacion**")
+        st.caption("Solo se aplican al subir o reindexar documentos. Cambiar estos valores no afecta a las consultas.")
+        rag_settings["chunk_size"] = st.slider(
+            "Tamano de fragmento",
+            min_value=300,
+            max_value=1500,
+            value=int(rag_settings["chunk_size"]),
+            step=50,
+            help="Tamano de cada trozo en el que se divide un documento al indexarlo. Fragmentos pequenos mejoran precision; fragmentos grandes conservan mas contexto.",
+        )
+        st.caption("Recomendado: 500-900. Si las respuestas mezclan temas, baja este valor y reindexa.")
+        rag_settings["chunk_overlap"] = st.slider(
+            "Solape entre fragmentos",
+            min_value=0,
+            max_value=min(400, rag_settings["chunk_size"] // 2),
+            value=min(int(rag_settings["chunk_overlap"]), max(0, rag_settings["chunk_size"] // 2)),
+            step=10,
+            help="Cantidad de texto compartido entre fragmentos consecutivos. Ayuda a no perder contexto cuando una idea cae entre dos trozos.",
+        )
+        st.caption("Recomendado: 80-150. Un solape bajo puede cortar ideas; uno muy alto añade redundancia.")
+        st.info("Para que estos cambios surtan efecto, reindexa los documentos desde la seccion Base de Conocimiento.")
         guardar_estado_persistido()
 
     st.header("📂 Base de Conocimiento")

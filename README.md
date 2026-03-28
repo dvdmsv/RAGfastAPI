@@ -7,8 +7,12 @@ Para este despliegue, se ha diseñado una **arquitectura de microservicios conte
 ## 🏗️ Arquitectura del Sistema
 A diferencia de un enfoque basado puramente en scripts de terminal, este sistema se divide en:
 * **Backend (Cerebro):** API REST construida con FastAPI.
-* **Orquestación RAG:** LlamaIndex (optimizado para RAG documental puro y recuperación de metadatos/citas).
-* **Vectorstore:** Qdrant (persistido localmente, con capacidades de búsqueda avanzada).
+* **Agente ReAct:** El núcleo del sistema es un **ReActAgent** (de `llama_index.core.agent`) que razona de forma autónoma y decide qué herramienta usar según la pregunta del usuario. Esto sustituye al anterior `CondensePlusContextChatEngine` y permite conversación general (saludos, etc.) sin necesidad de documentos indexados.
+* **Herramientas (Tools) del Agente:**
+  - `consultar_documentos` — Consulta la base de conocimiento vectorial (RAG) para responder preguntas sobre los documentos indexados. Incluye citas con archivo fuente, página y relevancia.
+  - `obtener_fecha_hora` — Devuelve la fecha y hora actual del sistema.
+  - `buscar_palabra_clave` — Busca una palabra clave exacta en todos los documentos indexados y devuelve los fragmentos con contexto.
+* **Vectorstore:** Qdrant (persistido localmente, con búsqueda híbrida densa + sparse/BM25).
 * **Frontend (Interfaz):** Streamlit, que unifica la ingesta de documentos y el agente de chat en una sola aplicación web.
 * **Embeddings:** HuggingFace (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
 * **Inferencia LLM:** LM Studio (ejecución 100% local, sin APIs de terceros ni fuga de datos). Soporta **Modelos de Razonamiento**, ya que el backend intercepta y formatea correctamente las etiquetas `<think>` emitidas por modelos como DeepSeek R1 en el UI.
@@ -223,7 +227,7 @@ Una vez levantado el sistema:
      -H "Content-Type: application/json" \
      -d '{"chunk_size":700,"chunk_overlap":120}'
    ```
-4. Si intentas chatear sin haber indexado documentos, el backend no tendrá creada la colección `documentos_rag`.
+4. El agente puede mantener conversaciones generales (saludos, preguntas sobre la hora, etc.) sin documentos indexados. Para consultas RAG sobre documentos, es necesario haber subido e indexado al menos un archivo.
 
 ### Primer arranque recomendado en 5 pasos
 
@@ -235,16 +239,45 @@ Si es tu primera vez ejecutando el proyecto, sigue este orden:
 4. Abre `http://localhost:8501`, sube un PDF o TXT y deja que se indexe.
 5. Haz una pregunta concreta sobre el documento y comprueba que aparezcan fuentes al final.
 
+### Ejemplos de preguntas por herramienta
+
+El agente ReAct decide automáticamente qué herramienta usar. Estos ejemplos ilustran cada una:
+
+**`consultar_documentos`** (consulta RAG sobre documentos indexados):
+- *"Resume los puntos principales del documento"*
+- *"¿Qué dice el artículo 5 del reglamento?"*
+- *"Compara las secciones de metodología y resultados"*
+
+**`obtener_fecha_hora`** (fecha y hora del sistema):
+- *"¿Qué hora es?"*
+- *"¿Qué día es hoy?"*
+- *"Dime la fecha actual"*
+
+**`buscar_palabra_clave`** (búsqueda exacta en documentos):
+- *"Busca la palabra 'presupuesto' en los documentos"*
+- *"¿En qué documentos aparece 'API REST'?"*
+- *"Encuentra menciones de 'Python 3.12' en los archivos"*
+
+**Conversación general** (sin herramientas, respuesta directa del LLM):
+- *"Hola, ¿qué puedes hacer?"*
+- *"Buenos días"*
+
 ### Ajustes avanzados de la UI
 
-La UI de Streamlit incluye un panel `⚙️ Ajustes Avanzados` con controles para ajustar el comportamiento del RAG sin tocar código:
+La UI de Streamlit incluye un panel `⚙️ Ajustes Avanzados` con controles para ajustar el comportamiento del RAG sin tocar código. Los ajustes están separados en dos categorías:
 
+**Parámetros de consulta** (se aplican en tiempo real al chatear):
 - **Presets rápidos:** `Chat`, `Precision`, `Rapido`, `Exploracion`
-- **Modelo activo en LM Studio:** solo informativo; se refresca con `↻`
-- **Thinking / razonamiento:** puede mostrarse plegado, autoexpandirse o permanecer oculto
-- **Chunking:** tamaño de fragmento y solape
+- **Temperatura:** controla la creatividad de las respuestas
 - **Recuperación:** `similarity_top_k`, `similarity_cutoff`, número de fuentes
 - **Reranking:** activación y número final de fragmentos
+
+**Parámetros de indexación** (se aplican solo al indexar/reindexar documentos):
+- **Chunking:** tamaño de fragmento (`chunk_size`) y solape (`chunk_overlap`)
+
+**Otros ajustes:**
+- **Modelo activo en LM Studio:** solo informativo; se refresca con `↻`
+- **Thinking / razonamiento:** puede mostrarse plegado, autoexpandirse o permanecer oculto
 
 Consejos prácticos:
 
@@ -397,7 +430,7 @@ Suele deberse a una de estas causas:
 - LM Studio no está arrancado
 - `OPENAI_API_BASE` no apunta al host correcto
 - `LLM_MODEL` no coincide con un modelo realmente cargado
-- no hay documentos indexados todavía
+- no hay documentos indexados todavía (necesario solo para consultas RAG; la conversación general funciona sin documentos)
 
 ### Aparece `Empty Response`
 
